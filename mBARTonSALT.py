@@ -39,3 +39,8 @@ def preprocess(example):
     return model_inputs
 
 model_inputs = preprocess(dataset)
+
+##### just btw here is how to concatenate datasets if you find useful
+# dataset1 = load_dataset("Sunbird/salt-dataset", split="train")
+# dataset2 = load_dataset("Sunbird/salt-dataset", split="train")
+# dataset = concatenate_datasets([dataset1, dataset2])
