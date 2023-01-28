@@ -1,0 +1,8 @@
+name: cross_platform_nlp_env
+dependencies:
+  - transformers
+  - datasets
+  - evaluate
+  - numpy
+  - matplotlib
+  - pytorch
