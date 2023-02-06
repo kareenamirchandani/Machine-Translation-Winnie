@@ -78,4 +78,4 @@ print(tokens_list)  #for each word we have a token index list with indexes in ea
 #special case 2: more than two indices for one word are different than 1, ie the word is identified in multiple languages- possible solutions to pick a language:
 #sol1 for special case 2: firstly check the words around and choose the a language if this is found in the word before or after (easy) or better translate from both languages and see which makes sense in context-TO DO
 #sol2 for special case 2: if sol1 fails, choose the language we find the most in the text or do translate from both languages and see how it fits the context-TO DO
-#if the word is from the embedded language then select them for translation
+#if the word is from the embedded language then select it for translation
