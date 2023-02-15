@@ -1,3 +1,6 @@
+# This file is for outputting predictions of validation sentences
+# The order is English, Luganda, Runyankole, Ateso, Lugbara, Acholi
+
 from keras.models import load_model
 import numpy as np
 import pickle
@@ -12,9 +15,12 @@ padding_type = 'post'
 oov_tok = "<OOV>"
 training_size = 105025
 
+# Load the tokenizer from the base model
 with open('tokenizer.pickle', 'rb') as handle:
     tokenizer = pickle.load(handle)
-model = load_model('trained_model_softmax.h5')
+
+# Load the finetuned model
+model = load_model('finetuned_softmax_word.h5')
 model.summary()
 
 
@@ -22,10 +28,11 @@ model.summary()
 # Translates to 'Could I use your phone?'
 
 #validation_sentence = ['Morning']
-validation_sentence = ['ombuzireho omukundwa wangye']
+#validation_sentence = ['ombuzireho omukundwa wangye']
+#validation_sentence = ['serpents in the trees ombuzireho']
 #validation_sentence = ['ombuzireho omukundwa wangye especially in the afternoon']
 #validation_sentence = ['ombuzireho omukundwa wangye'] # I miss you so much darling (Runyankole)
-#validation_sentence = ['Arai ilosi ijo, abuni aupar ke ijo.'] # Translates to 'If you are going, I shall accompany you'
+validation_sentence = ['Arai ilosi ijo, abuni aupar ke ijo.'] # Translates to 'If you are going, I shall accompany you'
 #validation_sentence = ['I will go to work as soon as the sun rises in the sky.']
 #validation_sentence = ['Mwattu yogera mpolampola', 'I will not go to work todat'] # Please speak more slowly (in Luganda)
 #validation_sentence = ['land']
@@ -45,28 +52,14 @@ proba = model.predict(val_padded)
 # print(proba)
 proba = np.asarray(proba, dtype=float)
 
+# Calculate the sum (this should be equal to 1)
 sum = np.sum(proba, 1)
 
 print(' Prediction:', proba, 'sum:',sum)
 
-'''
-# validation_sentence = 'Arai ilosi ijo, abuni aupar ke ijo.' Ateso
-# Translates to 'If you are going, I shall accompany you'
-
-
-# English validation sentence
-
-validation_sentence = 'The sun is shining, it is a beautiful day.'
-val_sequences = tokenizer.texts_to_sequences(validation_sentence)
-val_padded = pad_sequences(val_sequences, maxlen=max_length, padding=padding_type, truncating=trunc_type)
-
-proba = model.predict(val_padded)
-proba = np.asarray(proba, dtype=float)
-
-prediction = np.sum(proba, 0)
-
-print('English prediction:', prediction)
-
-# The predictions aren't really making sense
-# Look for more multilabel text examples
-'''
+# Format the output by rounding proba to 5dp and outputting percentage
+counter = 0
+languages = ['English', 'Luganda', 'Runyankole', 'Ateso', 'Lugbara', 'Acholi']
+for item in proba[0]:
+    print(languages[counter] + ': ' + str((round(item,5)*100))+'%')
+    counter += 1

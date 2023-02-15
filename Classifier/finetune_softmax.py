@@ -1,3 +1,5 @@
+# The following code is for finetuning the softmax model
+
 import tensorflow as tf
 import pandas as pd
 import keras
@@ -9,7 +11,6 @@ import pickle
 from keras.utils import pad_sequences
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
-from keras import backend as K
 
 vocab_size = 90000  # tokenizer will keep the top 50000 words
 embedding_dim = 16
@@ -19,6 +20,7 @@ padding_type = 'post'
 oov_tok = "<OOV>"
 training_size = 105025
 
+# Format the csv file so it can be converted to a pandas data frame
 df = pd.read_csv("sunbird_split_word.csv", encoding='ISO-8859-1')
 df = df.replace(np.nan, '', regex=True)
 #print(tabulate(df, headers='keys'))
@@ -29,6 +31,7 @@ X = list(df["sentence"])
 y = df_labels.values
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=42)
 
+# Load the base model
 base_model = tf.keras.models.load_model('trained_model_softmax.h5')
 
 print("Number of layers in the base model: ", len(base_model.layers))
@@ -37,16 +40,20 @@ print("Number of layers in the base model: ", len(base_model.layers))
 with open('tokenizer.pickle', 'rb') as handle:
     tokenizer = pickle.load(handle)
 
+# Convert the train and test sentences to sequences of numbers
 X_train = tokenizer.texts_to_sequences(X_train)
 X_test = tokenizer.texts_to_sequences(X_test)
 
 word_index = tokenizer.word_index
 
+# Pad sequences adds zeroes to the ends of each sequence
+# This ensures that all sequences are the same length
 X_train = pad_sequences(X_train, padding=padding_type, maxlen=max_length, truncating=trunc_type)
 X_test = pad_sequences(X_test, padding=padding_type, maxlen=max_length, truncating=trunc_type)
 
 input_tensor = base_model.layers[1]
 
+# Create the new model
 new_model = tf.keras.Sequential([
     tf.keras.layers.Embedding(vocab_size, embedding_dim, input_length=max_length),
     input_tensor,
@@ -65,6 +72,7 @@ new_model = tf.keras.Sequential([
 
 #new_model = models.Model(base_model.input, outputs=out)
 
+# Set the layers of the original model to all be trainable
 for i in range(len(base_model.layers)):
     layers.trainable = True   # True--> fine tine, False-->frozen
 

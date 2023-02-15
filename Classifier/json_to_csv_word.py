@@ -1,3 +1,6 @@
+# This file takes the json file containing individual words and labels
+# It converts this json file to a csv file
+
 import json
 import csv
 
@@ -6,7 +9,7 @@ import csv
 with open('sunbird_split_word.json') as json_file:
     jsondata = json.load(json_file)
 
-#jsondata = jsondata.replace("\\ua78", "")
+# jsondata = jsondata.replace("\\ua78", "")
 
 data_file = open('sunbird_split_word.csv', 'w', newline='')
 csv_writer = csv.writer(data_file)
