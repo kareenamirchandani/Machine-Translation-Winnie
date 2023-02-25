@@ -1,5 +1,5 @@
 from transformers import MT5ForConditionalGeneration, AutoTokenizer, DataCollatorForSeq2Seq, Seq2SeqTrainingArguments, Seq2SeqTrainer
-from datasets import load_dataset
+from datasets import load_dataset, load_from_disk
 import evaluate
 import numpy as np
 
@@ -10,11 +10,7 @@ model = MT5ForConditionalGeneration.from_pretrained("google/mt5-small")
 tokenizer = AutoTokenizer.from_pretrained("google/mt5-small")
 
 # Load and dataset
-dataset = load_dataset("Sunbird/salt-dataset", split = "train")
-dataReduction = 1
-dataset = dataset.select(list(range(0,int(dataReduction * dataset.num_rows))))
-ttsplit = 0.8
-dataset = dataset.train_test_split(train_size=ttsplit)
+dataset = dataset = load_from_disk("SALT_SPLIT")
 
 # def mix_langauges(data):
 #     languages = data.column_names
@@ -96,7 +92,7 @@ training_args = Seq2SeqTrainingArguments(
     per_device_eval_batch_size = 64,
     weight_decay = 0.01,
     save_total_limit = 3,
-    num_train_epochs = 5,
+    num_train_epochs = 20,
     predict_with_generate = True,
 )
 
@@ -113,7 +109,7 @@ trainer = Seq2SeqTrainer(
 # Train
 trainer.train()
 
-trainer.save_model("MT5.2_" + sourceLangauge)
+trainer.save_model("MT5_" + sourceLangauge)
 
 metrics = trainer.evaluate()
 
