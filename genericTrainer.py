@@ -5,7 +5,7 @@ from torch.optim import AdamW
 from torch.nn.utils.rnn import pad_sequence
 from tqdm.auto import tqdm
 from accelerate import Accelerator
-from datasets import load_from_disk, concatenate_datasets, Dataset
+from datasets import load_from_disk, concatenate_datasets, logging
 import evaluate
 import numpy as np
 import json
@@ -13,10 +13,12 @@ import os
 import shutil
 import sys
 import random
+import time
+import datetime
 from math import floor
 
 def create_dataset(datasets: list, datasetNames: list, config):
-    def sample(ds, sf):  # This will upsample and downsample SALT in the case of MUL
+    def sample(ds, sf):  # This will upsample and downsample
         if sf == 0:
             ds = ds.filter(lambda ex: False)
         elif sf < 1:
@@ -61,8 +63,6 @@ def save_results_to_json(train_loss, eval_loss, bleu, dir):
         outfile.write(json_object)
 
 def train(model, tokenizer, dataset, config):
-
-    print(dataset)
 
     # Tokenize Input
 
@@ -116,11 +116,6 @@ def train(model, tokenizer, dataset, config):
     #lrSchedule = get_cosine_schedule_with_warmup(optimizer=optimizer, num_warmup_steps=0, num_training_steps=num_train_epochs*len(train_dataloader))
     lrSchedule = get_constant_schedule(optimizer=optimizer) # Will use constant schedule for now. Change if significant noise in loss graphs
 
-
-    # Progress bar
-
-    progress_bar = tqdm(range(num_train_epochs * len(train_dataloader)))
-
     # Setup accelerator
 
     eval_dataloader_list = [eval_dataloader[lang] for lang in config["language_codes"]] # Many Eval_dataloaders so must be handled carefully
@@ -135,11 +130,22 @@ def train(model, tokenizer, dataset, config):
     eval_dataloader_list = acceleratedComponents[4:]
     eval_dataloader = {lang: eval_dataloader_list[idx] for idx, lang in enumerate(config["language_codes"])}
 
+    # Print Out Datasets before training
+    accelerator.print("Lengths of Datasets to be used\n")
+    accelerator.print("Training " + str(config["source_language"]) + " -> " + str(len(model_input)))
+    for k,v in eval_input.items():
+        accelerator.print("Evaluation " + str(k) + " -> " + str(len(v)))
+
+
     # Checkpointing
     outputDir = config["output_dir"] + config["source_language"]
     checkpointDir = outputDir + "/Checkpoints"
     os.mkdir(outputDir)
     os.mkdir(checkpointDir)
+
+    # Progress bar
+
+    progress_bar = tqdm(range(num_train_epochs * len(train_dataloader)))
 
     # Training Loop
  
@@ -167,6 +173,8 @@ def train(model, tokenizer, dataset, config):
                 total_train_loss = 0
             batch_idx += 1
             step += 1
+            if time.time() > config["maxTime"]:
+                break
         
         model.eval()
         for lang in config["language_codes"]:
@@ -177,7 +185,11 @@ def train(model, tokenizer, dataset, config):
                     loss, _ = model(**batch, labels = labels, use_cache=False)[:2]
                 loss = accelerator.gather(loss)
                 eval_data[lang][-1] += loss.item()
+                if time.time() > config["maxTime"]:
+                    break
             eval_data[lang][-1] = (step, eval_data[lang][-1]/len(eval_dataloader[lang]))
+            if time.time() > config["maxTime"]:
+                break
         
         # if len(eval_data) >= 2: !!!! Needs to be edited for loss calculated individuallt for each language
         #     if eval_data[-1] > eval_data[-2]:
@@ -185,6 +197,7 @@ def train(model, tokenizer, dataset, config):
         #         eval_in_decline = False # Changed True to False as early stopping is causing errors
 
         if epoch % epoch_per_eval == 0: #and epoch > 1
+            accelerator.print("\nStarting Evaluation epoch: " + str(epoch + 1))
             for lang in config["language_codes"]:
                 sacrebleu = evaluate.load("sacrebleu")
                 for batch in eval_dataloader[lang]:
@@ -201,9 +214,13 @@ def train(model, tokenizer, dataset, config):
                         labels, preds = postprocess_text(preds, labels)
 
                         sacrebleu.add_batch(predictions=preds, references=labels)
+                    if time.time() > config["maxTime"]:
+                        break
                 metrics = sacrebleu.compute()
+                accelerator.print(str(lang) + " BLEU: " + str(metrics["score"]))
                 bleu_data[lang].append((step, metrics["score"]))
-                print(bleu_data[lang], lang)
+                if time.time() > config["maxTime"]:
+                    break
 
 
         if epoch % epoch_per_save == 0 and epoch > 1 and eval_in_decline == False:
@@ -214,6 +231,10 @@ def train(model, tokenizer, dataset, config):
             accelerator.save_state(output_dir=(checkpointDir + "/" + str(epoch)))
 
         if eval_in_decline:
+            break
+
+        if time.time() > config["maxTime"]:
+            accelerator.print("Max Time exceeded: Stopped at " + str(datetime.timedelta(seconds = time.time()-config["startTime"])))
             break
 
     checkpoints = [int(check) for check in os.listdir(checkpointDir)]
@@ -313,16 +334,22 @@ def add_language_tokens(tokenizer, tokens_to_replace, language_tokens):
             del tokenizer.encoder[old]
     return tokenizer
 
+startTime = time.time()
+
 args = sys.argv
 possibleArgs = set(["mt5-small", "byt5-small","mt5-base", "byt5-base", "mt5-large", "byt5-large", "mbart", "opus"])
 langaugeArgs = {1:"lug", 2:"lgg", 3:"ach", 4:"teo", 5:"nyn", 6:"swa"} # this will be passed in by $PBS_ARRAY_INDEX
+timeArgs = {"OneTwo": 12, "TwoFour": 24, "ThreeTwo": 32, "FourEight": 48, "SevenTwo": 72}
 arg = 0
 langArg = 0
+maxTime = startTime + 300 # Training Will be broken after this time in seconds !!!!!!! Change to Higher default before depolying
 for a in args:
     if a in possibleArgs:
         arg = a
     if a in langaugeArgs:
         langArg = langaugeArgs[a]
+    if a in timeArgs:
+        maxTime = startTime + (timeArgs[a] - 0.5) * 60 * 60
 if arg == 0:
     arg = "opus" # Defaults to opus if no arguement given
 if langArg == 0:
@@ -334,11 +361,16 @@ config = {"source_language": langArg, # "Give as code e.g. lug lgg, teo"
         "languages": ["Luganda", "Lugbara", "Acholi", "Ateso", "Runyankole", "Swahili"],
         "langToCode": {"Luganda": "lug", "Lugbara": "lgg", "Acholi": "ach", "Ateso":"teo", "Runyankole":"nyn", "Swahili": "swa"},
         "sampleFactor": {"SALT": {"lug": 1, "lgg": 1, "teo": 1, "nyn": 1, "swa": 1, "ach": 1}, "MT560": {"lug": 1, "lgg": 1, "teo": 1, "nyn": 1, "swa": 1, "ach":1}}, # Change how much of each language to use from each dataset
-        "eval_sampleFactor": {"SALT": {"lug": 1, "lgg": 1, "teo": 1, "nyn": 1, "swa": 1, "ach": 1}, "MT560": {"lug": 0, "lgg": 0, "teo": 0, "nyn": 0, "swa": 1, "ach":0}},
+        "eval_sampleFactor": {"SALT": {"lug": 1, "lgg": 1, "teo": 1, "nyn": 1, "swa": 1, "ach": 1}, "MT560": {"lug": 1, "lgg": 1, "teo": 1, "nyn": 1, "swa": 1, "ach":1}}, # Are issues with certain sample factors especially when dataset is small ~ 10-100
         "training_epochs": 20,
         "output_dir": (arg + "_"),
-        "batch_size": 32
+        "batch_size": 32,
+        "maxTime": maxTime,
+        "startTime": startTime
 }
+
+# Disables Progress bar for dataset operations
+logging.disable_progress_bar()
 
 datasetSALT = load_from_disk("SALT_SPLIT")
 
@@ -384,3 +416,6 @@ for f in dirs:
         model = model_from_weights(model, "weights.pth") # If a weight file is loaded into the working directory the model will be based off that
 
 train(model, tokenizer, dataset, config)
+
+
+#### On BASH script do I need to specify which GPUs to use
