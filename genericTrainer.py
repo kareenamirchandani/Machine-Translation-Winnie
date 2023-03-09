@@ -95,7 +95,7 @@ def train(model, tokenizer, dataset, config):
     per_device_eval_batch_size = config["batch_size"]
     gradient_accumulation = 10
     epoch_per_save = 5
-    epoch_per_eval = 4
+    epoch_per_eval = 3
     loss_log_steps = 100
     max_num_checkpoints = 5
 
@@ -136,6 +136,20 @@ def train(model, tokenizer, dataset, config):
     for k,v in eval_input.items():
         accelerator.print("Evaluation " + str(k) + " -> " + str(len(v)))
 
+    # Print Out GPUs it is Using Before training
+    try:
+        accelerator.print("\nGPUs to be used\n")
+        cudaAvailable = False
+        for i in range(torch.cuda.device_count()):
+            accelerator.print(torch.cuda.get_device_properties(i).name)
+            cudaAvailable = True
+        if not cudaAvailable:
+            accelerator.print("No GPUs available\n")
+        else:
+            accelerator.print("\n")
+    except:
+        accelerator.print("Couldn't get GPU List\n")
+
 
     # Checkpointing
     outputDir = config["output_dir"] + config["source_language"]
@@ -153,7 +167,63 @@ def train(model, tokenizer, dataset, config):
     bleu_data = {lang: [] for lang in config["language_codes"]}
     eval_data = {lang: [] for lang in config["language_codes"]}
     step = 0
+    epoch = -1
     eval_in_decline = False
+
+    # Eval Functions
+
+    def lossEval(model, eval_dataloader, eval_data, config):
+        model.eval()
+        for lang in config["language_codes"]:
+            eval_data[lang].append(0)
+            for batch in eval_dataloader[lang]:
+                labels = batch.pop("labels")
+                with torch.no_grad():
+                    loss, _ = model(**batch, labels = labels, use_cache=False)[:2]
+                loss = accelerator.gather(loss)
+                eval_data[lang][-1] += loss.item()
+                if time.time() > config["maxTime"]:
+                    break
+            eval_data[lang][-1] = ((step, epoch + 1), eval_data[lang][-1]/len(eval_dataloader[lang]))
+            if time.time() > config["maxTime"]:
+                break
+        return eval_data
+
+    def bleuEval(model, eval_dataloader, bleu_data, config):
+        # Note max_target_length and tokenizer are leaky
+        accelerator.print("\nStarting Evaluation epoch: " + str(epoch + 1))
+        model.eval()
+        for lang in config["language_codes"]:
+            sacrebleu = evaluate.load("sacrebleu")
+            for batch in eval_dataloader[lang]:
+                labels = batch.pop("labels")
+                with torch.no_grad():
+                    preds = accelerator.unwrap_model(model).generate(batch["input_ids"], attention_mask=batch["attention_mask"], max_length = max_target_length)
+                    preds = accelerator.gather(preds).cpu().numpy()
+                    labels = accelerator.gather(labels).cpu().numpy()
+
+                    preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
+                    labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
+                    labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+                    
+                    labels, preds = postprocess_text(preds, labels)
+
+                    sacrebleu.add_batch(predictions=preds, references=labels)
+                if time.time() > config["maxTime"]:
+                    break
+            metrics = sacrebleu.compute()
+            accelerator.print(str(lang) + " BLEU: " + str(metrics["score"]))
+            bleu_data[lang].append(((step, epoch + 1), metrics["score"]))
+            if time.time() > config["maxTime"]:
+                break
+        return bleu_data
+
+    # Eval Before first iteration
+
+    eval_data = lossEval(model, eval_dataloader, eval_data, config)
+
+    bleu_data = bleuEval(model, eval_dataloader, bleu_data, config)
+
     for epoch in range(num_train_epochs):
         model.train()
         total_train_loss = 0
@@ -176,51 +246,10 @@ def train(model, tokenizer, dataset, config):
             if time.time() > config["maxTime"]:
                 break
         
-        model.eval()
-        for lang in config["language_codes"]:
-            eval_data[lang].append(0)
-            for batch in eval_dataloader[lang]:
-                labels = batch.pop("labels")
-                with torch.no_grad():
-                    loss, _ = model(**batch, labels = labels, use_cache=False)[:2]
-                loss = accelerator.gather(loss)
-                eval_data[lang][-1] += loss.item()
-                if time.time() > config["maxTime"]:
-                    break
-            eval_data[lang][-1] = (step, eval_data[lang][-1]/len(eval_dataloader[lang]))
-            if time.time() > config["maxTime"]:
-                break
-        
-        # if len(eval_data) >= 2: !!!! Needs to be edited for loss calculated individuallt for each language
-        #     if eval_data[-1] > eval_data[-2]:
-        #         print("Evaluation Performing Worse. Final Model will not be saved only best performing one")
-        #         eval_in_decline = False # Changed True to False as early stopping is causing errors
+        eval_data = lossEval(model, eval_dataloader, eval_data, config)
 
-        if epoch % epoch_per_eval == 0: #and epoch > 1
-            accelerator.print("\nStarting Evaluation epoch: " + str(epoch + 1))
-            for lang in config["language_codes"]:
-                sacrebleu = evaluate.load("sacrebleu")
-                for batch in eval_dataloader[lang]:
-                    labels = batch.pop("labels")
-                    with torch.no_grad():
-                        preds = accelerator.unwrap_model(model).generate(batch["input_ids"], attention_mask=batch["attention_mask"], max_length = max_target_length)
-                        preds = accelerator.gather(preds).cpu().numpy()
-                        labels = accelerator.gather(labels).cpu().numpy()
-
-                        preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
-                        labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
-                        labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
-                        
-                        labels, preds = postprocess_text(preds, labels)
-
-                        sacrebleu.add_batch(predictions=preds, references=labels)
-                    if time.time() > config["maxTime"]:
-                        break
-                metrics = sacrebleu.compute()
-                accelerator.print(str(lang) + " BLEU: " + str(metrics["score"]))
-                bleu_data[lang].append((step, metrics["score"]))
-                if time.time() > config["maxTime"]:
-                    break
+        if epoch % epoch_per_eval == 0 and epoch > 1:
+            bleu_data = bleuEval(model, eval_dataloader, bleu_data, config)
 
 
         if epoch % epoch_per_save == 0 and epoch > 1 and eval_in_decline == False:
@@ -236,6 +265,10 @@ def train(model, tokenizer, dataset, config):
         if time.time() > config["maxTime"]:
             accelerator.print("Max Time exceeded: Stopped at " + str(datetime.timedelta(seconds = time.time()-config["startTime"])))
             break
+
+    eval_data = lossEval(model, eval_dataloader, eval_data, config)
+
+    bleu_data = bleuEval(model, eval_dataloader, bleu_data, config)
 
     checkpoints = [int(check) for check in os.listdir(checkpointDir)]
     checkpoints.sort()
@@ -339,17 +372,17 @@ startTime = time.time()
 args = sys.argv
 possibleArgs = set(["mt5-small", "byt5-small","mt5-base", "byt5-base", "mt5-large", "byt5-large", "mbart", "opus"])
 langaugeArgs = {1:"lug", 2:"lgg", 3:"ach", 4:"teo", 5:"nyn", 6:"swa"} # this will be passed in by $PBS_ARRAY_INDEX
-timeArgs = {"OneTwo": 12, "TwoFour": 24, "ThreeTwo": 32, "FourEight": 48, "SevenTwo": 72}
+timeArgs = {"OneTwo": 12, "TwoFour": 24, "ThreeTwo": 32, "FourEight": 48, "SixZero": 60, "SevenTwo": 72}
 arg = 0
 langArg = 0
-maxTime = startTime + 300 # Training Will be broken after this time in seconds !!!!!!! Change to Higher default before depolying
+maxTime = startTime + 120*60*60 # Training Will be broken after this time in seconds
 for a in args:
     if a in possibleArgs:
         arg = a
     if a in langaugeArgs:
         langArg = langaugeArgs[a]
     if a in timeArgs:
-        maxTime = startTime + (timeArgs[a] - 0.5) * 60 * 60
+        maxTime = startTime + (timeArgs[a] - 1.5) * 60 * 60
 if arg == 0:
     arg = "opus" # Defaults to opus if no arguement given
 if langArg == 0:
@@ -362,7 +395,7 @@ config = {"source_language": langArg, # "Give as code e.g. lug lgg, teo"
         "langToCode": {"Luganda": "lug", "Lugbara": "lgg", "Acholi": "ach", "Ateso":"teo", "Runyankole":"nyn", "Swahili": "swa"},
         "sampleFactor": {"SALT": {"lug": 1, "lgg": 1, "teo": 1, "nyn": 1, "swa": 1, "ach": 1}, "MT560": {"lug": 1, "lgg": 1, "teo": 1, "nyn": 1, "swa": 1, "ach":1}}, # Change how much of each language to use from each dataset
         "eval_sampleFactor": {"SALT": {"lug": 1, "lgg": 1, "teo": 1, "nyn": 1, "swa": 1, "ach": 1}, "MT560": {"lug": 1, "lgg": 1, "teo": 1, "nyn": 1, "swa": 1, "ach":1}}, # Are issues with certain sample factors especially when dataset is small ~ 10-100
-        "training_epochs": 20,
+        "training_epochs": 30,
         "output_dir": (arg + "_"),
         "batch_size": 32,
         "maxTime": maxTime,
@@ -373,8 +406,16 @@ config = {"source_language": langArg, # "Give as code e.g. lug lgg, teo"
 logging.disable_progress_bar()
 
 datasetSALT = load_from_disk("SALT_SPLIT")
+# All Languages have this many translation pairs
+# Train = 100,024
+# Test = 25,006
 
 datasetMT560 = load_from_disk("MT560")
+# For Test and Train combined
+# ach = 73,172
+# swa = 975,456
+# nyn = 50,379
+# lug = 224,749
 
 # datasetMT560 = Dataset.from_list([{"src": "Hello World", "English": "Bye World", "src_lang": "swa"}, {"src": " World Hello", "English": "  World Bye", "src_lang": "lug"}])
 # datasetMT560 = datasetMT560.train_test_split(0.5)
@@ -418,4 +459,13 @@ for f in dirs:
 train(model, tokenizer, dataset, config)
 
 
-#### On BASH script do I need to specify which GPUs to use
+#### !!!! When Splitting data may get some language pairs for which the english translation is both in training and eval
+#### e.g.   Lug         Lgg             Ach          Eng
+####        "Bonjour"   "Hallo"         "Hola"      "Hello"
+# Eval: "Bonjour" -> "Hello"
+# Train: "Hallo" -> "Hello", "Hola" -> "Hello"
+# Does this mean we are evaluating on training data
+
+
+### Also add in FLORES-101 for Lugandan and Swahili so should get a high quality Swahili eval set
+
