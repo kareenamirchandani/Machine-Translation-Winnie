@@ -22,11 +22,14 @@ def create_dataset(datasets: list, datasetNames: list, config):
         if sf == 0:
             ds = ds.filter(lambda ex: False)
         elif sf < 1:
-            ds = ds.shuffle().shard(num_shards = round(1/sf), index = 0)
+            sl = list(range(round(sf*len(ds))))
+            ds = ds.shuffle().select(sl)
+            # ds = ds.shuffle().shard(num_shards = round(1/sf), index = 0)
         elif sf > 1:
             ds = [ds] * floor(sf) 
             if sf % 1 != 0:
-                ds.append(ds[0].shuffle().shard(num_shards = 1/(sf - floor(sf))))
+                sl = list(range(round((sf-floor(sf))*len(ds[0]))))
+                ds.append(ds[0].shuffle().select(sl))
             ds = concatenate_datasets(ds)
         return ds
     
