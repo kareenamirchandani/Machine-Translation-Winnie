@@ -414,6 +414,55 @@ config = {"source_language": langArg, # "Give as code e.g. lug lgg, teo, mul"
         "LRschedule": "constant" # Choose from constant, cosine, linear (add linear functionality)
 }
 
+# SF for changing splits of data
+# Method 1
+
+steps = 10
+max_upsample = 1.5
+target_samples = 30008 # Ensures a max upsampling of 1.5
+num_samples = {"SALT":{lang:20005 for lang in config["language_codes"]}, "MT560": {"lug": 224749*0.8, "ach":73172*0.8, "swa":975456*0.8, "nyn":50379*0.8, "lgg":0, "teo":0}}
+emptySF = [{"SALT":dict.fromkeys(config["language_codes"]), "MT560":dict.fromkeys(config["language_codes"])} for i in range(steps + 1)]
+sfFinal = []
+
+for n, sf in enumerate(emptySF):
+    for k in config["language_codes"]:
+        total_num_samples = num_samples["MT560"][k] + num_samples["SALT"][k]
+        diff = (total_num_samples - target_samples) * (n/steps)
+        if k == "swa":
+            # Hold Swahili Fraction Constant
+            sf["MT560"][k] = target_samples/num_samples["MT560"][k]
+            sf["SALT"][k] = 0
+        else:
+            if diff < num_samples["MT560"][k] and diff > 0:
+                # Take all away from MT560
+                sf["MT560"][k] = (num_samples["MT560"][k] - diff)/num_samples["MT560"][k]
+                sf["SALT"][k] = 1
+            elif diff > num_samples["MT560"][k] and diff > 0:
+                # If not enough in MT560 take all from MT560 plus some from SALT (theoretically should not happen if target_samples > SALT samples)
+                d = diff - num_samples["MT560"][k]
+                sf["SALT"][k] = (num_samples["SALT"][k] - d)/num_samples["SALT"][k]
+                sf["MT560"][k] = 0
+            elif diff < 0:
+                # Not fully robust here but assume that there is only SALT data in this case (holds for this data)
+                sf["MT560"][k] = 0
+                sf["SALT"][k] = (num_samples["SALT"][k] - diff)/num_samples["SALT"][k]
+            elif diff == 0:
+                sf["MT560"][k] = 1
+                sf["SALT"][k] = 1
+    sfFinal.append(sf)
+
+# Remove to let $PBS_ARRAY_INDEX control language
+
+config["source_language"] = "mul"
+config["output_dir"] = "mul_"
+
+for a in args:
+    if a.isdigit():
+        config["sampleFactor"] = sfFinal[int(a) - 1]
+        config["dataSplitStep"] = int(a)
+
+# ^^^^^^ Remove to allo $PSB_INDEX to control Language
+
 # Disables Progress bar for dataset operations
 logging.disable_progress_bar()
 
