@@ -27,12 +27,12 @@ model.summary()
 # Luganda validation sentence
 # Translates to 'Could I use your phone?'
 
-#validation_sentence = ['Morning']
+validation_sentence = ['brother']
 #validation_sentence = ['ombuzireho omukundwa wangye']
 #validation_sentence = ['serpents in the trees ombuzireho']
 #validation_sentence = ['ombuzireho omukundwa wangye especially in the afternoon']
 #validation_sentence = ['ombuzireho omukundwa wangye'] # I miss you so much darling (Runyankole)
-validation_sentence = ['Arai ilosi ijo, abuni aupar ke ijo.'] # Translates to 'If you are going, I shall accompany you'
+#validation_sentence = ['Arai ilosi ijo, abuni aupar ke ijo.'] # Translates to 'If you are going, I shall accompany you'
 #validation_sentence = ['I will go to work as soon as the sun rises in the sky.']
 #validation_sentence = ['Mwattu yogera mpolampola', 'I will not go to work todat'] # Please speak more slowly (in Luganda)
 #validation_sentence = ['land']
