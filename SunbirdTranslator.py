@@ -20,6 +20,8 @@ model_inputs = tokenizer(src_text, return_tensors="pt")
 # Feeds input into model giving output as token IDs
 model_outputs = model.generate(**model_inputs)
 
+print(model_outputs)
+
 #Convert token IDs back into string
 out_text = tokenizer.batch_decode(model_outputs, skip_special_tokens=True)
 
