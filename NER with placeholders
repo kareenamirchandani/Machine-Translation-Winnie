@@ -1,25 +1,15 @@
 import spacy
 import re
-!pip install translate langdetect
-from translate import Translator
 from langdetect import detect
 
 # Define the regular expression for embedded language fragments
 embedded_lang_regex = r"\[([a-zA-Z]+)\]"
 
-# Define the translation function
-def translate_sentence(sentence):
-    from_lang = detect(sentence)
-    if from_lang not in ["ach", "ate", "lg", "lrn", "lui", "sw"]:
-        raise ValueError("Unsupported language")
-    translator = Translator(from_lang=from_lang, to_lang='en', preserve_formatting=True)
-    translation = translator.translate(sentence)
-    return translation
-
 # Define the named entity recognition function
-def recognize_entities(translation):
+def recognize_entities(sentence):
+    from_lang = detect(sentence)
     nlp = spacy.load("en_core_web_sm")
-    doc = nlp(translation)
+    doc = nlp(sentence)
 
     placeholders = {}
     ne_count = 0
@@ -28,22 +18,21 @@ def recognize_entities(translation):
         placeholders[ent.text] = f"[NE{ne_count}]"
 
     for key, value in placeholders.items():
-        translation = translation.replace(key, value)
+        sentence = sentence.replace(key, value)
 
-    match_iter = re.finditer(embedded_lang_regex, translation)
+    match_iter = re.finditer(embedded_lang_regex, sentence)
     embedded_count = 0
     for match in match_iter:
         embedded_count += 1
         embedded_lang = match.group(1)
         placeholder = f"[EMB_LANG{embedded_count}]"
         placeholders[placeholder] = embedded_lang
-        translation = translation[:match.start()] + placeholder + translation[match.end():]
+        sentence = sentence[:match.start()] + placeholder + sentence[match.end():]
 
-    return translation, placeholders
+    return sentence, placeholders
 
 # Testing
-african_sentence = "Makumbusho ya Taifa ya Tanzania yako Dar es Salaam."
-translated_sentence = translate_sentence(african_sentence)
-ner_sentence, placeholders = recognize_entities(translated_sentence)
+african_sentence = "Entonga buriijo zikurira omu mbeera y'obwire erikutagata"
+ner_sentence, placeholders = recognize_entities(african_sentence)
 print(ner_sentence)
 print(placeholders)
