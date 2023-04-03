@@ -18,7 +18,6 @@ import matplotlib.pyplot as plt
 
 from datasets import load_from_disk
 
-MT560 = load_from_disk('C:/Users/emike/MT560')
 # SALT_SPLIT contains English, src and src_lang
 
 # Lug, lgg, ach, teo, nyn, swa
@@ -52,6 +51,8 @@ nyn = Data.filter(lambda ex: ex["src_lang"] == "nyn")
 
 lugMT560 = MT560.filter(lambda ex: ex["src_lang"] == "lug")
 swaMT560 = MT560.filter(lambda ex: ex["src_lang"] == "swa")
+achMT560 = MT560.filter(lambda ex: ex["src_lang"] == "ach")
+nynMT560 = MT560.filter(lambda ex: ex["src_lang"] == "nyn")
 
 lug_length = len(lug["train"])
 nyn_length = len(nyn["train"])
@@ -61,6 +62,8 @@ ach_length = len(ach["train"])
 
 lug_lengthMT560 = len(lugMT560["train"])
 swa_lengthMT560 = len(swaMT560["train"])
+ach_lengthMT560 = len(achMT560["train"])
+nyn_lengthMT560 = len(nynMT560["train"])
 
 #print(lug_length,nyn_length,teo_length,lgg_length,ach_length)
 
@@ -110,6 +113,18 @@ for i in range(swa_lengthMT560):
     new_dict2 = {'English': 0, 'Luganda': 0, 'Runyankole': 0, 'Ateso': 0, 'Lugbara': 0, 'Acholi':0, 'Swahili':1,'sentence': swaMT560["train"][i]['src']}
     training_dictionary_list.append(new_dict2)
 
+for i in range(ach_lengthMT560):
+    new_dict = {'English': 1, 'Luganda': 0, 'Runyankole': 0, 'Ateso': 0, 'Lugbara': 0, 'Acholi':0, 'Swahili':0,'sentence': achMT560["train"][i]['English']}
+    training_dictionary_list.append(new_dict)
+    new_dict2 = {'English': 0, 'Luganda': 0, 'Runyankole': 0, 'Ateso': 0, 'Lugbara': 0, 'Acholi':1, 'Swahili':0,'sentence': achMT560["train"][i]['src']}
+    training_dictionary_list.append(new_dict2)
+
+for i in range(nyn_lengthMT560):
+    new_dict = {'English': 1, 'Luganda': 0, 'Runyankole': 0, 'Ateso': 0, 'Lugbara': 0, 'Acholi':0, 'Swahili':0,'sentence': nynMT560["train"][i]['English']}
+    training_dictionary_list.append(new_dict)
+    new_dict2 = {'English': 0, 'Luganda': 0, 'Runyankole': 1, 'Ateso': 0, 'Lugbara': 0, 'Acholi':0, 'Swahili':0,'sentence': nynMT560["train"][i]['src']}
+    training_dictionary_list.append(new_dict2)
+
 print(len(training_dictionary_list))
 
 training_sentences_and_labels = [[] for x in range(len(training_dictionary_list))]
@@ -134,7 +149,7 @@ print('sentences length',len(training_sentences))
 print('labels length',len(training_labels))
 
 # Create csv file to store training set
-with open("SALT_and_MT560_train.csv", "w", encoding="utf-8",newline="") as f:
+with open("SALT_and_MT560_train3.csv", "w", encoding="utf-8",newline="") as f:
     writer = csv.writer(f)
     writer.writerow(fields)
     writer.writerows(training_sentences_and_labels)
@@ -143,6 +158,11 @@ print(training_sentences_and_labels[10])
 print(training_sentences[10])
 print(training_labels[10])
 
+with open('training_sentences.txt', 'wb') as f:
+    pickle.dump(training_sentences, f)
+
+with open('training_labels.txt', 'wb') as f:
+    pickle.dump(training_labels, f)
 
 # Carry out same process for test data
 
@@ -154,6 +174,8 @@ ach_length = len(ach["test"])
 
 lug_lengthMT560 = len(lugMT560["test"])
 swa_lengthMT560 = len(swaMT560["test"])
+ach_lengthMT560 = len(achMT560["test"])
+nyn_lengthMT560 = len(nynMT560["test"])
 
 #print(lug_length,nyn_length,teo_length,lgg_length,ach_length)
 
@@ -203,6 +225,18 @@ for i in range(swa_lengthMT560):
     new_dict2 = {'English': 0, 'Luganda': 0, 'Runyankole': 0, 'Ateso': 0, 'Lugbara': 0, 'Acholi':0, 'Swahili':1,'sentence': swaMT560["test"][i]['src']}
     testing_dictionary_list.append(new_dict2)
 
+for i in range(ach_lengthMT560):
+    new_dict = {'English': 1, 'Luganda': 0, 'Runyankole': 0, 'Ateso': 0, 'Lugbara': 0, 'Acholi':0, 'Swahili':0,'sentence': achMT560["test"][i]['English']}
+    testing_dictionary_list.append(new_dict)
+    new_dict2 = {'English': 0, 'Luganda': 0, 'Runyankole': 0, 'Ateso': 0, 'Lugbara': 0, 'Acholi':1, 'Swahili':0,'sentence': achMT560["test"][i]['src']}
+    testing_dictionary_list.append(new_dict2)
+
+for i in range(nyn_lengthMT560):
+    new_dict = {'English': 1, 'Luganda': 0, 'Runyankole': 0, 'Ateso': 0, 'Lugbara': 0, 'Acholi':0, 'Swahili':0,'sentence': nynMT560["test"][i]['English']}
+    testing_dictionary_list.append(new_dict)
+    new_dict2 = {'English': 0, 'Luganda': 0, 'Runyankole': 1, 'Ateso': 0, 'Lugbara': 0, 'Acholi':0, 'Swahili':0,'sentence': nynMT560["test"][i]['src']}
+    testing_dictionary_list.append(new_dict2)
+
 print(len(testing_dictionary_list))
 
 testing_sentences_and_labels = [[] for x in range(len(testing_dictionary_list))]
@@ -226,12 +260,18 @@ print('sentences and labels length',len(testing_sentences_and_labels))
 print('sentences length',len(testing_sentences))
 print('labels length',len(testing_labels))
 
+with open('testing_sentences.txt', 'wb') as f:
+    pickle.dump(testing_sentences, f)
+
+with open('testing_labels.txt', 'wb') as f:
+    pickle.dump(testing_labels, f)
+
 # Create csv file to store testing set
-'''
-with open("SALT_and_MT560_test.csv", "w", encoding="utf-8",newline="") as f:
+
+with open("SALT_and_MT560_test3.csv", "w", encoding="utf-8",newline="") as f:
     writer = csv.writer(f)
     writer.writerow(fields)
-    writer.writerows(testing_sentences_and_labels)'''
+    writer.writerows(testing_sentences_and_labels)
 
 print(testing_sentences_and_labels[10])
 print(testing_sentences[10])
@@ -244,7 +284,7 @@ print(testing_labels[10])
 tokenizer = Tokenizer(num_words=vocab_size, oov_token=oov_tok)
 tokenizer.fit_on_texts(training_sentences)
 
-with open('tokenizer.pickle', 'wb') as handle:
+with open('tokenizer5.pickle', 'wb') as handle:
     pickle.dump(tokenizer, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 word_index = tokenizer.word_index
@@ -276,7 +316,7 @@ model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy']
 
 model.summary()
 
-num_epochs = 20
+num_epochs = 5
 history = model.fit(training_padded, training_labels, epochs=num_epochs,
                     validation_data=(testing_padded, testing_labels), verbose=2)
 
@@ -295,4 +335,4 @@ def plot_result(item):
 plot_result("loss")
 plot_result("accuracy")
 
-model.save("lang_classifier_softmax2.h5")
+model.save("lang_classifier_softmax4.h5")

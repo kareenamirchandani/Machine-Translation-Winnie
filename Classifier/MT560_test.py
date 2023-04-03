@@ -9,12 +9,18 @@ fields = ['sentence', 'English', 'Luganda', 'Runyankole', 'Ateso', 'Lugbara', 'A
 
 lugMT560 = MT560.filter(lambda ex: ex["src_lang"] == "lug")
 swaMT560 = MT560.filter(lambda ex: ex["src_lang"] == "swa")
+achMT560 = MT560.filter(lambda ex: ex["src_lang"] == "ach")
+nynMT560 = MT560.filter(lambda ex: ex["src_lang"] == "nyn")
 
 lug_lengthMT560 = len(lugMT560["train"])
 swa_lengthMT560 = len(swaMT560["train"])
+ach_lengthMT560 = len(achMT560["train"])
+nyn_lengthMT560 = len(nynMT560["train"])
 
 print(lugMT560["train"][0])
 print(swaMT560["train"][0])
+print(achMT560["train"][0])
+print('nyn', nynMT560["train"][0])
 
 for i in range(lug_lengthMT560):
     new_dict = {'English': 1, 'Luganda': 0, 'Runyankole': 0, 'Ateso': 0, 'Lugbara': 0, 'Acholi':0, 'Swahili':0,'sentence': lugMT560["train"][i]['English']}

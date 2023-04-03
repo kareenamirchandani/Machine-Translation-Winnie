@@ -98,7 +98,7 @@ word_index = tokenizer.word_index
 X_train = pad_sequences(X_train, padding=padding_type, maxlen=max_length, truncating=trunc_type)
 X_test = pad_sequences(X_test, padding=padding_type, maxlen=max_length, truncating=trunc_type)
 
-with open('tokenizer.pickle', 'wb') as handle:
+with open('tokenizer_softmax.pickle', 'wb') as handle:
     pickle.dump(tokenizer, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 # https://stackabuse.com/python-for-nlp-multi-label-text-classification-with-keras/
@@ -167,7 +167,7 @@ def plot_result(item):
 plot_result("loss")
 plot_result("accuracy")
 
-model.save("trained_model_softmax.h5")
+model.save("trained_model_softmax2.h5")
 
 '''
 # Luganda validation sentence

@@ -37,7 +37,7 @@ base_model = tf.keras.models.load_model('trained_model_softmax.h5')
 print("Number of layers in the base model: ", len(base_model.layers))
 
 # Load tokenizer from base model
-with open('tokenizer.pickle', 'rb') as handle:
+with open('tokenizer_softmax.pickle', 'rb') as handle:
     tokenizer = pickle.load(handle)
 
 # Convert the train and test sentences to sequences of numbers

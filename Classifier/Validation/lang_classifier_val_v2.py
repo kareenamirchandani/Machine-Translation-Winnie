@@ -15,12 +15,12 @@ padding_type = 'post'
 oov_tok = "<OOV>"
 
 # Load the tokenizer from the base model
-with open('tokenizer.pickle', 'rb') as handle:
+with open('../tokenizer.pickle', 'rb') as handle:
     tokenizer = pickle.load(handle)
 
 # Load the finetuned model
-#model = load_model('finetuned_softmax_word.h5')
-model = load_model('lang_classifier_softmax2.h5')
+#model = load_model('../finetuned_softmax_word.h5')
+model = load_model('../lang_classifier_softmax2.h5')
 model.summary()
 
 
