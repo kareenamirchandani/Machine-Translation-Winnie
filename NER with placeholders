@@ -1,14 +1,18 @@
 import spacy
 import re
-!pip install translate
+!pip install translate langdetect
 from translate import Translator
+from langdetect import detect
 
 # Define the regular expression for embedded language fragments
 embedded_lang_regex = r"\[([a-zA-Z]+)\]"
 
 # Define the translation function
 def translate_sentence(sentence):
-    translator = Translator(from_lang='sw', to_lang='en', preserve_formatting=True)
+    from_lang = detect(sentence)
+    if from_lang not in ["ach", "ate", "lg", "lrn", "lui", "sw"]:
+        raise ValueError("Unsupported language")
+    translator = Translator(from_lang=from_lang, to_lang='en', preserve_formatting=True)
     translation = translator.translate(sentence)
     return translation
 
