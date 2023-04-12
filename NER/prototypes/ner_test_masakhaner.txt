@@ -1,0 +1,19 @@
+from ner_masakhaner_func import ner_masakhaner_func
+from ner_array_func import ner_array_func
+from ner_spacy_func import ner_spacy_english_func, ner_spacy_multilingual_func
+from common_words_func import common_words_func
+
+example = 'Emir of Kano turban Claire wey don spend 18 years for Nigeria'
+sent1='heey how are u today mr cloe'
+sent2='how now heey how bla bla cloe do' 
+
+#print(ner_masakhaner_func(example))
+
+#print(ner_array_func(example,'ner_dataset.txt'))
+
+#print(ner_spacy_english_func(example))
+
+#print(ner_spacy_multilingual_func(example))
+
+print(common_words_func(sent1,sent2))
+print(common_words_func(sent2,sent1))
