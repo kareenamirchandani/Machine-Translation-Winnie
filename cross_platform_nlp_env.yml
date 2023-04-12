@@ -1,8 +1,16 @@
 name: cross_platform_nlp_env
+channels:
+  - defaults
+  - anaconda
 dependencies:
+  - python=3.10.9
   - transformers
   - datasets
   - evaluate
   - numpy
   - matplotlib
   - pytorch
+  - conda-forge::accelerate
+  - sacrebleu
+  - conda-forge::sentencepeice
+  - protobuf
