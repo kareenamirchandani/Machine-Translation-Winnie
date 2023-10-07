@@ -20,7 +20,8 @@ with open('../tokenizer4.pickle', 'rb') as handle:
 #model = load_model('../trained_model_softmax.h5')
 #model = load_model('../finetuned_softmax_word.h5')
 #model = load_model('../lang_classifier_softmax2.h5')
-model = load_model('../lang_classifier_softmax4.h5')
+#model = load_model('../lang_classifier_softmax4.h5')
+model = load_model('../SALT_MT560_finetuned_word.h5')
 model.summary()
 
 english_list_val = []
@@ -54,4 +55,6 @@ language_counts = [eng_count, lug_count, nyn_count, teo_count, lgg_count, ach_co
 
 print('shape',np.shape(predictions_max))
 print('Language counts', language_counts)
+
+print(english_list_val)
 

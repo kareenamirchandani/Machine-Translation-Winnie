@@ -19,7 +19,8 @@ with open('../tokenizer4.pickle', 'rb') as handle:
 #model = load_model('../trained_model_softmax.h5')
 #model = load_model('../finetuned_softmax_word.h5')
 #model = load_model('../lang_classifier_softmax2.h5')
-model = load_model('../lang_classifier_softmax4.h5')
+#model = load_model('../lang_classifier_softmax4.h5')
+model = load_model('../SALT_MT560_finetuned_word.h5')
 model.summary()
 
 lug_list_val = []

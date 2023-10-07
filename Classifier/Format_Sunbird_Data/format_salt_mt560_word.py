@@ -1,5 +1,9 @@
 import csv
 import string
+import graphviz
+import pydot
+#from keras.utils import plot_model
+from keras.utils.vis_utils import plot_model
 # The following code is for finetuning the SALT+MT560 softmax model
 
 import tensorflow as tf
@@ -29,7 +33,7 @@ with open('../SALT_and_MT560_train3.csv', 'r',encoding='utf-8') as file:
         data_lines.append(line)
 
     counter = 0
-    for i in range(1, len(data_lines)): #len(data_lines)
+    for i in range(1, 5): #len(data_lines)
         temp = data_lines[i][0].split()
         temp_label = data_lines[i][-7:]
         # .translate(str.maketrans('', '', string.punctuation))
@@ -77,7 +81,7 @@ with open('../SALT_and_MT560_test3.csv', 'r',encoding='utf-8') as file:
         data_lines_test.append(line)
 
     counter = 0
-    for i in range(1, len(data_lines_test)): #len(data_lines)
+    for i in range(1, 5): #len(data_lines)
         temp = data_lines_test[i][0].split()
         temp_label = data_lines_test[i][-7:]
         # .translate(str.maketrans('', '', string.punctuation))
@@ -178,11 +182,17 @@ new_model = tf.keras.Sequential([
 
 #new_model = models.Model(base_model.input, outputs=out)
 
-for layer in new_model.layers:
+'''for layer in new_model.layers:
     if layer.name == 'output_layer':
         layer.trainable = True
     else:
-        layer.trainable = False
+        layer.trainable = False'''
+
+for layer in new_model.layers:
+    layer.trainable = True
+
+'''for i in range(len(base_model.layers)):
+    layers.trainable = True   # True--> fine tine, False-->frozen'''
 
 '''
 # Set the layers of the original model to all be trainable
@@ -215,5 +225,16 @@ def plot_result(item):
 
 plot_result("loss")
 plot_result("accuracy")
+plot_model(new_model, to_file='model_plot.png', show_shapes=True, show_layer_names=True)
 
 new_model.save("SALT_MT560_finetuned_word.h5")
+
+print('loss:',history.history["loss"])
+print('accuracy:',history.history["accuracy"])
+print('val loss:',history.history["val_loss"])
+print('val acc:',history.history["val_accuracy"])
+
+print(sentences[10])
+print(labels[10])
+print(sentences_test[30])
+print(labels_test[30])

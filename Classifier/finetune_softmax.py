@@ -12,7 +12,7 @@ from keras.utils import pad_sequences
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 
-vocab_size = 90000  # tokenizer will keep the top 50000 words
+vocab_size = 90000  # tokenizer will keep the top 90000 words
 embedding_dim = 16
 max_length = 100
 trunc_type = 'post'
@@ -23,7 +23,7 @@ training_size = 105025
 # Format the csv file so it can be converted to a pandas data frame
 df = pd.read_csv("sunbird_split_word.csv", encoding='ISO-8859-1')
 df = df.replace(np.nan, '', regex=True)
-#print(tabulate(df, headers='keys'))
+
 
 df_labels = df[["English", "Luganda", "Runyankole", "Ateso", "Lugbara", "Acholi"]]
 

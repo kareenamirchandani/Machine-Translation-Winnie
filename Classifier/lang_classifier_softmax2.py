@@ -1,3 +1,5 @@
+# This is the code used to make the final version of classification model trained on sentences
+
 import tensorflow as tf
 from keras.preprocessing.text import Tokenizer
 from keras.utils import pad_sequences
@@ -19,6 +21,7 @@ import matplotlib.pyplot as plt
 from datasets import load_from_disk
 
 # SALT_SPLIT contains English, src and src_lang
+# SALT_SPLIT is consistent with translation code
 
 # Lug, lgg, ach, teo, nyn, swa
 
@@ -148,7 +151,7 @@ print('sentences and labels length',len(training_sentences_and_labels))
 print('sentences length',len(training_sentences))
 print('labels length',len(training_labels))
 
-# Create csv file to store training set
+# Create csv file to store training set (SALT and MT560)
 with open("SALT_and_MT560_train3.csv", "w", encoding="utf-8",newline="") as f:
     writer = csv.writer(f)
     writer.writerow(fields)
@@ -179,7 +182,7 @@ nyn_lengthMT560 = len(nynMT560["test"])
 
 #print(lug_length,nyn_length,teo_length,lgg_length,ach_length)
 
-# Add SALT training examples to dictionary list
+# Add SALT test examples to dictionary list
 
 for i in range(lug_length):
     new_dict = {'English': 1, 'Luganda': 0, 'Runyankole': 0, 'Ateso': 0, 'Lugbara': 0, 'Acholi':0, 'Swahili':0,'sentence': lug["test"][i]['English']}
@@ -211,7 +214,7 @@ for i in range(ach_length):
     new_dict2 = {'English': 0, 'Luganda': 0, 'Runyankole': 0, 'Ateso': 0, 'Lugbara': 0, 'Acholi':1, 'Swahili':0,'sentence': ach["test"][i]['src']}
     testing_dictionary_list.append(new_dict2)
 
-# Add the MT560 data to training_dictionary_list
+# Add the MT560 test data to testing_dictionary_list
 
 for i in range(lug_lengthMT560):
     new_dict = {'English': 1, 'Luganda': 0, 'Runyankole': 0, 'Ateso': 0, 'Lugbara': 0, 'Acholi':0, 'Swahili':0,'sentence': lugMT560["test"][i]['English']}
@@ -266,7 +269,7 @@ with open('testing_sentences.txt', 'wb') as f:
 with open('testing_labels.txt', 'wb') as f:
     pickle.dump(testing_labels, f)
 
-# Create csv file to store testing set
+# Create csv file to store test set
 
 with open("SALT_and_MT560_test3.csv", "w", encoding="utf-8",newline="") as f:
     writer = csv.writer(f)
@@ -284,6 +287,7 @@ print(testing_labels[10])
 tokenizer = Tokenizer(num_words=vocab_size, oov_token=oov_tok)
 tokenizer.fit_on_texts(training_sentences)
 
+# Store the tokenizer using pickle
 with open('tokenizer5.pickle', 'wb') as handle:
     pickle.dump(tokenizer, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -295,6 +299,7 @@ training_padded = pad_sequences(training_sequences, maxlen=max_length, padding=p
 testing_sequences = tokenizer.texts_to_sequences(testing_sentences)
 testing_padded = pad_sequences(testing_sequences, maxlen=max_length, padding=padding_type, truncating=trunc_type)
 
+# Convert to numpy array
 training_padded = np.array(training_padded)
 training_labels = np.array(training_labels)
 testing_padded = np.array(testing_padded)
@@ -335,4 +340,5 @@ def plot_result(item):
 plot_result("loss")
 plot_result("accuracy")
 
+# Save the model
 model.save("lang_classifier_softmax4.h5")
